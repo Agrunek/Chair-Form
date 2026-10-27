@@ -288,7 +288,7 @@ function RecordingTimer({
         <p className="timer-reminder">The study asks for a video of about one hour. Work as you normally would, and finish earlier or later if that better suits your day. Pausing here only pauses this timer; your video recording is separate, and you can take breaks whenever you need to.</p>
         <div className="timer-actions">
           {timer.isRunning ? <Button variant="secondary" onClick={timer.pause}>Pause timer</Button> : <Button onClick={timer.resume}>{timer.elapsedMinutes === 0 ? 'Begin timer' : 'Resume timer'}</Button>}
-          <Button variant="text" onClick={() => setConfirmFinish(true)}>Finish session</Button>
+          <Button variant="secondary" onClick={() => setConfirmFinish(true)}>Finish session</Button>
         </div>
       </section>
       <p className="timer-footnote">The timer counts elapsed time, not a countdown. You can finish whenever you’re ready.</p>
