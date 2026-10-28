@@ -1,23 +1,17 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { useSessionTimer } from './hooks/useSessionTimer'
 import { initialAnswers, sensationBodyAreas, type QuestionnaireAnswers } from './types'
 
 type Stage = 'welcome' | 'guidelines' | 'recording' | 'complete' | 'questionnaire' | 'thank-you'
 
-const QUESTION_COUNT = 13
+const QUESTION_COUNT = 8
 
 const questionTitles = [
-  'Recording influence',
   'Workspace adjustments',
   'Chair controls',
-  'Recent discomfort',
   'Physical sensations',
-  'Desk and chair fit',
   'Shared workspace',
   'Exercise routine',
   'Health and past injuries',
-  'Age range',
-  'Time spent sitting',
   'Video link',
   'Anything else',
 ]
@@ -42,33 +36,7 @@ const sensationRatingOptions = [
   'Numbness / Fatigue',
 ]
 
-const fitOptions = [
-  'Limited legroom or knees hitting the desk frame',
-  'Armrests hitting the edge or top of the desk when pushing the chair in',
-  'Difficulty reaching chair controls when seated close to the desk',
-  'Cables or under-desk attachments blocking movement',
-  'None — the chair fits under and around the desk without issues',
-  'Other spatial challenges (please describe)',
-]
-
 const yesNo = ['Yes', 'No']
-const exerciseOptions = [
-  'Mostly sedentary (0 days)',
-  'Lightly active (1–2 days)',
-  'Moderately active (3–4 days)',
-  'Very active (5+ days)',
-  'Prefer not to say',
-]
-const ageOptions = [
-  'Under 18',
-  '18–24',
-  '25–34',
-  '35–44',
-  '45–54',
-  '55–64',
-  '65 or older',
-  'Prefer not to say',
-]
 
 function LeafMark() {
   return (
@@ -256,13 +224,7 @@ function RecordingGuidelines({ onStart }: { onStart: () => void }) {
   )
 }
 
-function RecordingTimer({
-  timer,
-  onFinish,
-}: {
-  timer: ReturnType<typeof useSessionTimer>
-  onFinish: () => void
-}) {
+function RecordingTimer({ onFinish }: { onFinish: () => void }) {
   const [confirmFinish, setConfirmFinish] = useState(false)
 
   function finish() {
@@ -273,36 +235,19 @@ function RecordingTimer({
   return (
     <PageShell narrow className="timer-page">
       <PageIntro eyebrow="Your work session" title="Settle into your day." description="Work as you normally would. There’s no need to watch the clock." />
-      <section className="timer-card" aria-label="Session timer">
-        <span className={`timer-status${timer.isRunning ? ' timer-status-running' : ' timer-status-paused'}`}>
-          <span className={`status-dot${timer.isRunning ? ' is-running' : ''}`} />
-          {timer.isRunning ? 'Session in progress' : 'Timer paused'}
-        </span>
-        <p className="elapsed-label">Time elapsed</p>
-        <p className="elapsed-time" aria-live="polite">{timer.elapsedLabel}</p>
-        {timer.milestoneMessage ? (
-          <p className="milestone-message" role="status">{timer.milestoneMessage}</p>
-        ) : (
-          <p className="milestone-message quiet-message">The time will be here when you need it.</p>
-        )}
-        <p className="timer-reminder">The study asks for a video of about one hour. Work as you normally would, and finish earlier or later if that better suits your day. Pausing here only pauses this timer; your video recording is separate, and you can take breaks whenever you need to.</p>
+      <section className="timer-card" aria-label="Session controls">
+        <p className="timer-reminder">The study asks for a video of about one hour. Work as you normally would, and finish earlier or later if that better suits your day. Your video recording continues separately, and you can take breaks whenever you need to.</p>
         <div className="timer-actions">
-          {timer.isRunning ? <Button variant="secondary" onClick={timer.pause}>Pause timer</Button> : <Button onClick={timer.resume}>{timer.elapsedMinutes === 0 ? 'Begin timer' : 'Resume timer'}</Button>}
           <Button variant="secondary" onClick={() => setConfirmFinish(true)}>Finish session</Button>
         </div>
       </section>
-      <p className="timer-footnote">The timer counts elapsed time, not a countdown. You can finish whenever you’re ready.</p>
+      <p className="timer-footnote">You can finish whenever you’re ready.</p>
       {confirmFinish && (
         <div className="modal-backdrop" role="presentation" onClick={() => setConfirmFinish(false)}>
           <section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="finish-title" onClick={(event) => event.stopPropagation()}>
             <span className="eyebrow">Whenever you’re ready</span>
             <h2 id="finish-title">Finish your session?</h2>
-            {timer.elapsedMinutes < 55 && (
-              <p className="duration-warning" role="note">
-                The study asks for a video of about one hour. The timer shows less so far. If you paused the timer while recording, your video may be longer; please check its length if you’re unsure.
-              </p>
-            )}
-            <p>This will end the timer only. Your video recording will continue until you stop it on your own device.</p>
+            <p>Your video recording will continue until you stop it on your own device.</p>
             <div className="dialog-actions"><Button variant="secondary" onClick={() => setConfirmFinish(false)}>Keep working</Button><Button onClick={finish}>Finish session</Button></div>
           </section>
         </div>
@@ -323,7 +268,7 @@ function RecordingComplete({ onContinue }: { onContinue: () => void }) {
         <li><span>04</span><p>Continue to the questions and add your link when asked.</p></li>
       </ol>
       <p className="subtle-copy completion-note">You can proceed with a questionaire while the video is being uploaded. We'll ask for it at the end.</p>
-      <div className="screen-actions"><span className="subtle-copy">Next up: 13 short questions</span><Button onClick={onContinue}>Continue to questions <span aria-hidden="true">→</span></Button></div>
+      <div className="screen-actions"><span className="subtle-copy">Next up: 8 short questions</span><Button onClick={onContinue}>Continue to questions <span aria-hidden="true">→</span></Button></div>
     </PageShell>
   )
 }
@@ -463,41 +408,46 @@ function Questionnaire({
     setAnswers((current) => ({ ...current, [key]: value }))
   }
 
+  function updateControl(index: number, field: 'known' | 'used', checked: boolean) {
+    const unsureIndex = answers.controls.findIndex((control) => control.label === 'Unsure / don’t know')
+    if (index === unsureIndex && checked) {
+      update('controls', answers.controls.map((control, itemIndex) => ({
+        ...control,
+        known: itemIndex === unsureIndex,
+        used: false,
+      })))
+      return
+    }
+
+    update('controls', answers.controls.map((control, itemIndex) => ({
+      ...control,
+      ...(itemIndex === index ? { [field]: checked } : {}),
+      ...(index !== unsureIndex && itemIndex === unsureIndex ? { known: false } : {}),
+    })))
+  }
+
   function validationForQuestion(index: number) {
     switch (index) {
       case 0:
-        return answers.recordingInfluence ? '' : 'Choose the answer that feels closest to your experience.'
-      case 1:
         return answers.adjustments.length ? '' : 'Select an option, including “Nothing at all” if that fits.'
-      case 2:
+      case 1:
         return answers.controls.some((control) => control.known || control.used)
           ? ''
           : 'Please mark at least one response. It’s okay to choose “Unsure / don’t know”.'
-      case 4: {
-        const areasToRate = [
-          ...sensationBodyAreas,
-          ...(answers.sensationsOther.trim() ? [answers.sensationsOther.trim()] : []),
-        ]
+      case 2: {
+        const areasToRate = [...sensationBodyAreas]
         const unratedAreas = areasToRate.filter((area) => !answers.sensationRatings[area])
         return unratedAreas.length
           ? `Choose one rating for each body area: ${unratedAreas.join(', ')}.`
           : ''
       }
-      case 5:
-        return answers.fitIssues.length ? '' : 'Choose an option, including “None” if there are no issues.'
-      case 6:
+      case 3:
         return answers.sharedWorkspace ? '' : 'Please choose yes or no.'
-      case 7:
-        return answers.exerciseActivity ? '' : 'Please select one option.'
-      case 9:
-        return answers.ageRange ? '' : 'Please select an age range or “Prefer not to say”.'
-      case 10: {
-        const hours = Number(answers.seatedHours)
-        return answers.seatedHours !== '' && Number.isFinite(hours) && hours >= 0 && hours <= 24
-          ? ''
-          : 'Enter a number of hours between 0 and 24.'
-      }
-      case 11:
+      case 4:
+        return answers.exerciseActivity ? '' : 'Please give a brief description of your fitness level.'
+      case 5:
+        return answers.medicalConditions ? '' : 'Please choose an answer, or “Prefer not to say”.'
+      case 6:
         if (!answers.videoLink.trim()) return 'Please provide a shareable video link to continue.'
         try {
           const parsed = new URL(answers.videoLink.trim())
@@ -542,17 +492,12 @@ function Questionnaire({
       {step < QUESTION_COUNT ? (
         <QuestionCard step={step}>
           {step === 0 && <>
-            <h2 id="question-title">Did recording yourself influence your behavior during the session?</h2>
-            <ChoiceList label="Recording influence" options={['Not at all', 'Slightly', 'Moderately', 'Significantly', 'Very significantly', 'Not sure']} value={answers.recordingInfluence ? [answers.recordingInfluence] : []} onChange={(value) => update('recordingInfluence', value[0] ?? '')} error={error} />
-            <TextField label="Can you briefly describe how the recording influenced your behavior?" value={answers.influenceDetails} onChange={(value) => update('influenceDetails', value)} optional placeholder="Share as much or as little as you like." />
-          </>}
-          {step === 1 && <>
             <h2 id="question-title">What do you normally adjust before or during work, if anything?</h2>
             <p className="question-hint">Choose all that apply. “Nothing at all” is an exclusive choice.</p>
             <ChoiceList label="Workspace adjustments" options={adjustmentOptions} value={answers.adjustments} onChange={(value) => update('adjustments', value)} type="checkbox" exclusiveOptions={['Nothing at all']} error={error} />
             {answers.adjustments.includes('Other (please specify)') && <TextField label="What else do you adjust?" value={answers.adjustmentOther} onChange={(value) => update('adjustmentOther', value)} optional rows={0} placeholder="Your adjustment" />}
           </>}
-          {step === 2 && <>
+          {step === 1 && <>
             <h2 id="question-title">Which chair controls do you know are available, and which of them do you actually use?</h2>
             <p className="question-hint">Knowing a control is there and choosing to use it are different things. Mark each column separately.</p>
             <div className="controls-table" role="group" aria-label="Chair control familiarity and use">
@@ -560,26 +505,20 @@ function Questionnaire({
               {answers.controls.map((control, index) => (
                 <div className="control-row" key={control.label}>
                   <span>{control.label}</span>
-                  <label className="table-check"><span className="sr-only">I know {control.label} exists</span><input type="checkbox" checked={control.known} onChange={(event) => update('controls', answers.controls.map((item, itemIndex) => itemIndex === index ? { ...item, known: event.target.checked } : item))} /></label>
+                  <label className="table-check"><span className="sr-only">I know {control.label} exists</span><input type="checkbox" checked={control.known} onChange={(event) => updateControl(index, 'known', event.target.checked)} /></label>
                   {control.label === 'Unsure / don’t know' ? (
                     <span className="table-check not-applicable" aria-label="Not applicable">—</span>
                   ) : (
-                    <label className="table-check"><span className="sr-only">I use {control.label}</span><input type="checkbox" checked={control.used} onChange={(event) => update('controls', answers.controls.map((item, itemIndex) => itemIndex === index ? { ...item, used: event.target.checked } : item))} /></label>
+                    <label className="table-check"><span className="sr-only">I use {control.label}</span><input type="checkbox" checked={control.used} onChange={(event) => updateControl(index, 'used', event.target.checked)} /></label>
                   )}
                 </div>
               ))}
             </div>
             {error && <p className="field-error" role="alert">{error}</p>}
           </>}
-          {step === 3 && <>
-            <h2 id="question-title">Tell us about the last time your chair or desk felt uncomfortable, awkward, or difficult to use.</h2>
-            <p className="question-hint">No need to share medical information.</p>
-            <TextField label="What happened, and what made it uncomfortable or difficult?" value={answers.discomfort} onChange={(value) => update('discomfort', value)} optional placeholder="Think about a recent situation. What happened, and what made it uncomfortable or difficult?" />
-          </>}
-          {step === 4 && <>
+          {step === 2 && <>
             <h2 id="question-title">How do your body parts feel after working here for a while?</h2>
             <p className="question-hint">Choose one description for each area you’d like to rate. You can leave any area blank.</p>
-            <TextField label="Other body area (optional)" value={answers.sensationsOther} onChange={(value) => update('sensationsOther', value)} optional rows={0} placeholder="Name another area" />
             <div className="sensation-table-scroll" role="region" aria-label="Body area ratings table. Scroll horizontally to see every rating." tabIndex={0} aria-describedby={error ? 'sensation-error' : undefined}>
               <table className="sensation-table">
                 <thead>
@@ -616,12 +555,7 @@ function Questionnaire({
             {error && <p className="field-error" id="sensation-error" role="alert">{error}</p>}
             <TextField label="Would you like to describe these sensations in more detail?" value={answers.sensationsDetails} onChange={(value) => update('sensationsDetails', value)} optional placeholder="Share only what you’re comfortable sharing." />
           </>}
-          {step === 5 && <>
-            <h2 id="question-title">What is difficult about fitting this chair under or around the desk — especially regarding legroom, reaching controls, or moving around?</h2>
-            <ChoiceList label="Desk and chair fit" options={fitOptions} value={answers.fitIssues} onChange={(value) => update('fitIssues', value)} type="checkbox" exclusiveOptions={['None — the chair fits under and around the desk without issues']} error={error} />
-            {answers.fitIssues.includes('Other spatial challenges (please describe)') && <TextField label="What other spatial challenges do you notice?" value={answers.fitOther} onChange={(value) => update('fitOther', value)} optional rows={0} placeholder="Describe the challenge" />}
-          </>}
-          {step === 6 && <>
+          {step === 3 && <>
             <h2 id="question-title">Do you share this desk or workspace with other people?</h2>
             <p className="question-hint">For example, hot-desking, shared office shifts, or family members working from home.</p>
             <ChoiceList label="Shared workspace" options={yesNo} value={answers.sharedWorkspace ? [answers.sharedWorkspace] : []} onChange={(value) => update('sharedWorkspace', value[0] ?? '')} error={error} />
@@ -630,34 +564,27 @@ function Questionnaire({
               <TextField label="What makes you skip making adjustments?" value={answers.sharedSkip} onChange={(value) => update('sharedSkip', value)} optional placeholder="For example, being in a rush, complex or stiff controls, a temporary desk, or not knowing what to change." />
             </div>}
           </>}
-          {step === 7 && <>
-            <h2 id="question-title">How active are you outside of your time spent sitting at this desk?</h2>
-            <ChoiceList label="Activity level" options={exerciseOptions} value={answers.exerciseActivity ? [answers.exerciseActivity] : []} onChange={(value) => update('exerciseActivity', value[0] ?? '')} error={error} />
-            <TextField label="Would you like to describe your typical exercise routine?" value={answers.exerciseDetails} onChange={(value) => update('exerciseDetails', value)} optional placeholder="A short description, if you’d like." />
+          {step === 4 && <>
+            <h2 id="question-title">How would you describe your overall fitness level?</h2>
+            <TextField label="Your fitness level" value={answers.exerciseActivity} onChange={(value) => update('exerciseActivity', value)} placeholder="For example: active, fairly fit, less active, or any way you’d describe it." required error={error} />
           </>}
-          {step === 8 && <>
+          {step === 5 && <>
             <h2 id="question-title">Do you have any chronic medical conditions or past injuries that affect your posture or comfort while working?</h2>
             <p className="question-hint">For example, back pain, carpal tunnel syndrome, or a previous injury. This question is optional; you don’t need to share a diagnosis.</p>
-            <ChoiceList label="Health and past injuries" options={['Yes', 'No', 'Prefer not to say']} value={answers.medicalConditions ? [answers.medicalConditions] : []} onChange={(value) => update('medicalConditions', value[0] ?? '')} />
+            <ChoiceList label="Health and past injuries" options={['Yes', 'No', 'Prefer not to say']} value={answers.medicalConditions ? [answers.medicalConditions] : []} onChange={(value) => update('medicalConditions', value[0] ?? '')} error={error} />
             {answers.medicalConditions === 'Yes' && <TextField label="Would you like to share any additional information?" value={answers.medicalDetails} onChange={(value) => update('medicalDetails', value)} optional placeholder="Share only what you’re comfortable sharing." />}
           </>}
-          {step === 9 && <>
-            <h2 id="question-title">What is your age range?</h2>
-            <div className="field-wrap"><label className="field-label" htmlFor="age-range">Choose an age range</label><select id="age-range" value={answers.ageRange} onChange={(event) => update('ageRange', event.target.value)}><option value="">Select an option</option>{ageOptions.map((option) => <option key={option}>{option}</option>)}</select></div>
-            {error && <p className="field-error" role="alert">{error}</p>}
-          </>}
-          {step === 10 && <>
-            <h2 id="question-title">On average, how many hours per day do you spend sitting at this desk?</h2>
-            <TextField label="Hours per day" value={answers.seatedHours} onChange={(value) => update('seatedHours', value)} type="number" rows={0} min={0} max={24} placeholder="For example, 7.5" error={error} />
-            <p className="question-hint">Enter a number from 0 to 24. Decimals are okay.</p>
-          </>}
-          {step === 11 && <>
+          {step === 6 && <>
             <h2 id="question-title">Please provide the shareable link to your recording.</h2>
-            <p className="question-hint">Before sharing, check that your cloud-storage permissions allows the research team to access it.</p>
+            <p className="question-hint">To share your recording with the research team:</p>
+            <ol className="upload-steps">
+              <li><span>01</span><p>Upload the recording to a cloud storage service of your choice.</p></li>
+              <li><span>02</span><p>Set the sharing permissions so the research team can access it.</p></li>
+              <li><span>03</span><p>Copy a shareable link and double-check its permissions.</p></li>
+            </ol>
             <TextField label="Video link" value={answers.videoLink} onChange={(value) => update('videoLink', value)} type="url" rows={0} placeholder="https://" required error={error} />
-            <p className="question-hint">Check your cloud-sharing permissions before sharing the link.</p>
           </>}
-          {step === 12 && <>
+          {step === 7 && <>
             <h2 id="question-title">Is there anything else about your chair or workspace that you would like to share?</h2>
             <TextField label="Anything else on your mind?" value={answers.additionalComments} onChange={(value) => update('additionalComments', value)} optional placeholder="This is completely optional." />
           </>}
@@ -686,31 +613,23 @@ function ReviewAnswers({
   onEdit: (step: number) => void
 }) {
   const details = [
-    [answers.recordingInfluence, answers.influenceDetails].filter(Boolean).join('\n'),
     [...answers.adjustments.filter((item) => item !== 'Other (please specify)'), answers.adjustmentOther].filter(Boolean).join('\n'),
     answers.controls.map((control) => control.label === 'Unsure / don’t know'
       ? `${control.label}: ${control.known ? 'selected' : 'not selected'}`
       : `${control.label}: ${control.known ? 'knows it exists' : 'doesn’t know it exists'}; ${control.used ? 'uses it' : 'doesn’t use it'}`).join('\n'),
-    answers.discomfort,
     [
       ...Object.entries(answers.sensationRatings)
         .filter(([, rating]) => rating)
         .map(([area, rating]) => `${area}: ${rating}`),
-      answers.sensationsOther && !answers.sensationRatings[answers.sensationsOther]
-        ? `Other body area: ${answers.sensationsOther}`
-        : '',
       answers.sensationsDetails,
     ].filter(Boolean).join('\n'),
-    [...answers.fitIssues.filter((item) => item !== 'Other spatial challenges (please describe)'), answers.fitOther].filter(Boolean).join('\n'),
     answers.sharedWorkspace === 'Yes'
       ? ['Yes', answers.sharedSetup && `Setup: ${answers.sharedSetup}`, answers.sharedSkip && `Skipped adjustments: ${answers.sharedSkip}`].filter(Boolean).join('\n')
       : answers.sharedWorkspace,
-    [answers.exerciseActivity, answers.exerciseDetails].filter(Boolean).join('\n'),
+    answers.exerciseActivity,
     answers.medicalConditions === 'Yes'
       ? ['Yes', answers.medicalDetails].filter(Boolean).join('\n')
       : answers.medicalConditions,
-    answers.ageRange,
-    answers.seatedHours ? `${answers.seatedHours} hours per day` : '',
     answers.videoLink,
     answers.additionalComments,
   ]
@@ -757,10 +676,8 @@ function ThankYou() {
 function App() {
   const [stage, setStage] = useState<Stage>('welcome')
   const [answers, setAnswers] = useState<QuestionnaireAnswers>(initialAnswers)
-  const timer = useSessionTimer()
 
   function finishSession() {
-    timer.pause()
     setStage('complete')
   }
 
@@ -768,8 +685,8 @@ function App() {
     <div className="app-frame">
       <SiteHeader showStep={stage !== 'welcome' && stage !== 'thank-you'} />
       {stage === 'welcome' && <WelcomeScreen onContinue={() => setStage('guidelines')} />}
-      {stage === 'guidelines' && <RecordingGuidelines onStart={() => { timer.start(); setStage('recording') }} />}
-      {stage === 'recording' && <RecordingTimer timer={timer} onFinish={finishSession} />}
+      {stage === 'guidelines' && <RecordingGuidelines onStart={() => setStage('recording')} />}
+      {stage === 'recording' && <RecordingTimer onFinish={finishSession} />}
       {stage === 'complete' && <RecordingComplete onContinue={() => setStage('questionnaire')} />}
       {stage === 'questionnaire' && <Questionnaire answers={answers} setAnswers={setAnswers} onFinish={() => setStage('thank-you')} onBackToRecording={() => setStage('complete')} />}
       {stage === 'thank-you' && <ThankYou />}

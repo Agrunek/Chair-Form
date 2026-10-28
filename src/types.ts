@@ -6,6 +6,7 @@ export type ChairControl = {
 
 export const sensationBodyAreas = [
   'Legs',
+  'Knees',
   'Feet',
   'Lower back',
   'Shoulders or neck',
@@ -13,12 +14,9 @@ export const sensationBodyAreas = [
 ]
 
 export type QuestionnaireAnswers = {
-  recordingInfluence: string
-  influenceDetails: string
   adjustments: string[]
   adjustmentOther: string
   controls: ChairControl[]
-  discomfort: string
   sensationRatings: Record<string, string>
   sensationsOther: string
   sensationsDetails: string
@@ -28,18 +26,13 @@ export type QuestionnaireAnswers = {
   sharedSetup: string
   sharedSkip: string
   exerciseActivity: string
-  exerciseDetails: string
   medicalConditions: string
   medicalDetails: string
-  ageRange: string
-  seatedHours: string
   videoLink: string
   additionalComments: string
 }
 
 export const initialAnswers: QuestionnaireAnswers = {
-  recordingInfluence: '',
-  influenceDetails: '',
   adjustments: [],
   adjustmentOther: '',
   controls: [
@@ -50,7 +43,6 @@ export const initialAnswers: QuestionnaireAnswers = {
     { label: 'Back support adjustment (lower-back curve or cushion)', known: false, used: false },
     { label: 'Unsure / don’t know', known: false, used: false },
   ],
-  discomfort: '',
   sensationRatings: Object.fromEntries(sensationBodyAreas.map((area) => [area, ''])),
   sensationsOther: '',
   sensationsDetails: '',
@@ -60,11 +52,8 @@ export const initialAnswers: QuestionnaireAnswers = {
   sharedSetup: '',
   sharedSkip: '',
   exerciseActivity: '',
-  exerciseDetails: '',
   medicalConditions: '',
   medicalDetails: '',
-  ageRange: '',
-  seatedHours: '',
   videoLink: '',
   additionalComments: '',
 }
