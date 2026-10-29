@@ -3,7 +3,7 @@ import { initialAnswers, sensationBodyAreas, type QuestionnaireAnswers } from '.
 
 type Stage = 'welcome' | 'guidelines' | 'recording' | 'complete' | 'questionnaire' | 'thank-you'
 
-const QUESTION_COUNT = 8
+const QUESTION_COUNT = 9
 const SHEET_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz6MlCTmV92a0vwgEcqCRxosciTkL0RSKRWCgXN9exUh9-lXKUdnk7Q1qcu1qt5uxZIag/exec'
 
 type SheetResponse = { ok: true; row: number }
@@ -56,8 +56,9 @@ const questionTitles = [
   'Chair controls',
   'Physical sensations',
   'Shared workspace',
-  'Exercise routine',
+  'Fitness and physical activity',
   'Health and past injuries',
+  'Age',
   'Video link',
   'Anything else',
 ]
@@ -78,8 +79,8 @@ const adjustmentOptions = [
 const sensationRatingOptions = [
   'Neutral / Comfortable',
   'Mild discomfort',
-  'Pain / Strain',
-  'Numbness / Fatigue',
+  'Strain',
+  'Numbness / Pain',
 ]
 
 const yesNo = ['Yes', 'No']
@@ -314,7 +315,7 @@ function RecordingComplete({ onContinue }: { onContinue: () => void }) {
         <li><span>04</span><p>Continue to the questions and add your link when asked.</p></li>
       </ol>
       <p className="subtle-copy completion-note">You can proceed with a questionaire while the video is being uploaded. We'll ask for it at the end.</p>
-      <div className="screen-actions"><span className="subtle-copy">Next up: 8 short questions</span><Button onClick={onContinue}>Continue to questions <span aria-hidden="true">→</span></Button></div>
+      <div className="screen-actions"><span className="subtle-copy">Next up: 9 short questions</span><Button onClick={onContinue}>Continue to questions <span aria-hidden="true">→</span></Button></div>
     </PageShell>
   )
 }
@@ -413,6 +414,48 @@ function TextField({
   )
 }
 
+function RatingScale({
+  label,
+  name,
+  value,
+  onChange,
+  error,
+}: {
+  label: string
+  name: string
+  value: number
+  onChange: (value: number) => void
+  error?: string
+}) {
+  const errorId = useId()
+
+  return (
+    <fieldset className="fitness-scale" aria-describedby={error ? errorId : undefined}>
+      <legend className="field-label">{label}</legend>
+      <div className="fitness-scale-captions" aria-hidden="true">
+        <span>Poor</span><span /><span>Moderate</span><span /><span>Excellent</span>
+      </div>
+      <div className="fitness-scale-options">
+        {[1, 2, 3, 4, 5].map((rating) => (
+          <label className="fitness-scale-option" key={rating}>
+            <input
+              type="radio"
+              name={name}
+              value={rating}
+              checked={value === rating}
+              aria-label={`${rating}${rating === 1 ? ', Poor' : rating === 3 ? ', Moderate' : rating === 5 ? ', Excellent' : ''}`}
+              aria-invalid={Boolean(error)}
+              onChange={() => onChange(rating)}
+            />
+            <span>{rating}</span>
+          </label>
+        ))}
+      </div>
+      {error && <p className="field-error" id={errorId} role="alert">{error}</p>}
+    </fieldset>
+  )
+}
+
 function QuestionCard({
   step,
   children,
@@ -496,10 +539,15 @@ function Questionnaire({
       case 3:
         return answers.sharedWorkspace ? '' : 'Please choose yes or no.'
       case 4:
-        return answers.exerciseActivity ? '' : 'Please give a brief description of your fitness level.'
+        if (answers.fitnessRating < 1 || answers.fitnessRating > 5) {
+          return 'Please select a fitness rating from 1 to 5.'
+        }
+        return answers.perceivedPhysicalActivity >= 1 && answers.perceivedPhysicalActivity <= 5
+          ? ''
+          : 'Please select a perceived physical activity rating from 1 to 5.'
       case 5:
         return answers.medicalConditions ? '' : 'Please choose an answer, or “Prefer not to say”.'
-      case 6:
+      case 7:
         if (!answers.videoLink.trim()) return 'Please provide a shareable video link to continue.'
         try {
           const parsed = new URL(answers.videoLink.trim())
@@ -553,7 +601,7 @@ function Questionnaire({
       {step < QUESTION_COUNT ? (
         <QuestionCard step={step}>
           {step === 0 && <>
-            <h2 id="question-title">What do you normally adjust before or during work, if anything?</h2>
+            <h2 id="question-title">Do you adjust your chair before starting to work? If, yes - what do you adjust?</h2>
             <p className="question-hint">Choose all that apply. “Nothing at all” is an exclusive choice.</p>
             <ChoiceList label="Workspace adjustments" options={adjustmentOptions} value={answers.adjustments} onChange={(value) => update('adjustments', value)} type="checkbox" exclusiveOptions={['Nothing at all']} error={error} />
             {answers.adjustments.includes('Other (please specify)') && <TextField label="What else do you adjust?" value={answers.adjustmentOther} onChange={(value) => update('adjustmentOther', value)} optional rows={0} placeholder="Your adjustment" />}
@@ -626,8 +674,22 @@ function Questionnaire({
             </div>}
           </>}
           {step === 4 && <>
-            <h2 id="question-title">How would you describe your overall fitness level?</h2>
-            <TextField label="Your fitness level" value={answers.exerciseActivity} onChange={(value) => update('exerciseActivity', value)} placeholder="For example: active, fairly fit, less active, or any way you’d describe it." required error={error} />
+            <h2 id="question-title">How would you describe your overall fitness level and perceived physical activity?</h2>
+            <p className="question-hint">Choose a rating from 1 (Poor) to 5 (Excellent).</p>
+            <RatingScale
+              label="Fitness level"
+              name="fitnessRating"
+              value={answers.fitnessRating}
+              onChange={(value) => update('fitnessRating', value)}
+              error={error && (answers.fitnessRating < 1 || answers.fitnessRating > 5) ? error : ''}
+            />
+            <RatingScale
+              label="Perceived physical activity"
+              name="perceivedPhysicalActivity"
+              value={answers.perceivedPhysicalActivity}
+              onChange={(value) => update('perceivedPhysicalActivity', value)}
+              error={error && (answers.perceivedPhysicalActivity < 1 || answers.perceivedPhysicalActivity > 5) ? error : ''}
+            />
           </>}
           {step === 5 && <>
             <h2 id="question-title">Do you have any chronic medical conditions or past injuries that affect your posture or comfort while working?</h2>
@@ -636,6 +698,18 @@ function Questionnaire({
             {answers.medicalConditions === 'Yes' && <TextField label="Would you like to share any additional information?" value={answers.medicalDetails} onChange={(value) => update('medicalDetails', value)} optional placeholder="Share only what you’re comfortable sharing." />}
           </>}
           {step === 6 && <>
+            <h2 id="question-title">How old are you?</h2>
+            <TextField
+              label="Age in years"
+              value={answers.age}
+              onChange={(value) => update('age', value)}
+              optional
+              type="number"
+              rows={0}
+              placeholder="Your age"
+            />
+          </>}
+          {step === 7 && <>
             <h2 id="question-title">Please provide the shareable link to your recording.</h2>
             <p className="question-hint">To share your recording with the research team:</p>
             <ol className="upload-steps">
@@ -645,7 +719,7 @@ function Questionnaire({
             </ol>
             <TextField label="Video link" value={answers.videoLink} onChange={(value) => update('videoLink', value)} type="url" rows={0} placeholder="https://" required error={error} />
           </>}
-          {step === 7 && <>
+          {step === 8 && <>
             <h2 id="question-title">Is there anything else about your chair or workspace that you would like to share?</h2>
             <TextField label="Anything else on your mind?" value={answers.additionalComments} onChange={(value) => update('additionalComments', value)} optional placeholder="This is completely optional." />
           </>}
@@ -692,10 +766,14 @@ function ReviewAnswers({
     answers.sharedWorkspace === 'Yes'
       ? ['Yes', answers.sharedSetup && `Setup: ${answers.sharedSetup}`, answers.sharedSkip && `Skipped adjustments: ${answers.sharedSkip}`].filter(Boolean).join('\n')
       : answers.sharedWorkspace,
-    answers.exerciseActivity,
+    [
+      `Fitness level: ${answers.fitnessRating}`,
+      `Perceived physical activity: ${answers.perceivedPhysicalActivity}`,
+    ].filter(Boolean).join('\n'),
     answers.medicalConditions === 'Yes'
       ? ['Yes', answers.medicalDetails].filter(Boolean).join('\n')
       : answers.medicalConditions,
+    answers.age ? `${answers.age} years` : '',
     answers.videoLink,
     answers.additionalComments,
   ]

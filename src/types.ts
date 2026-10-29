@@ -9,8 +9,10 @@ export const sensationBodyAreas = [
   'Knees',
   'Feet',
   'Lower back',
+  'Buttocks',
   'Shoulders or neck',
-  'Arms or wrists',
+  'Arms',
+  'Wrists',
 ]
 
 export type QuestionnaireAnswers = {
@@ -22,9 +24,11 @@ export type QuestionnaireAnswers = {
   sharedWorkspace: string
   sharedSetup: string
   sharedSkip: string
-  exerciseActivity: string
+  fitnessRating: number
+  perceivedPhysicalActivity: number
   medicalConditions: string
   medicalDetails: string
+  age: string
   videoLink: string
   additionalComments: string
 }
@@ -45,9 +49,11 @@ export const initialAnswers: QuestionnaireAnswers = {
   sharedWorkspace: '',
   sharedSetup: '',
   sharedSkip: '',
-  exerciseActivity: '',
+  fitnessRating: 0,
+  perceivedPhysicalActivity: 0,
   medicalConditions: '',
   medicalDetails: '',
+  age: '',
   videoLink: '',
   additionalComments: '',
 }
