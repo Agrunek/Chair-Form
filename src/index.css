@@ -922,6 +922,12 @@ h1,
   text-align: center;
 }
 
+.completion-page > .screen-actions {
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
 .completion-page > .page-intro > p,
 .thank-you-page > .page-intro > p {
   margin-right: auto;
@@ -967,10 +973,6 @@ h1,
   margin: 0;
   color: #56635a;
   font-size: 13px;
-}
-
-.completion-note {
-  margin-top: 17px;
 }
 
 .questionnaire-page {

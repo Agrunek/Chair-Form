@@ -307,14 +307,7 @@ function RecordingComplete({ onContinue }: { onContinue: () => void }) {
   return (
     <PageShell narrow className="completion-page">
       <div className="completion-mark" aria-hidden="true"><span>✓</span></div>
-      <PageIntro eyebrow="The recording · Complete" title="Thank you for that time." description="Whenever you’re ready, a few small steps will bring your recording with you to the questionnaire." />
-      <ol className="upload-steps">
-        <li><span>01</span><p>Upload the recording to a cloud storage service of your choice.</p></li>
-        <li><span>02</span><p>Set the sharing permissions so the research team can access it.</p></li>
-        <li><span>03</span><p>Copy a shareable link and double-check its permissions.</p></li>
-        <li><span>04</span><p>Continue to the questions and add your link when asked.</p></li>
-      </ol>
-      <p className="subtle-copy completion-note">You can proceed with a questionaire while the video is being uploaded. We'll ask for it at the end.</p>
+      <PageIntro eyebrow="The recording · Complete" title="Thank you for that time." description="You’ll be asked to provide a link to your video at the end of the questionnaire." />
       <div className="screen-actions"><span className="subtle-copy">Next up: 9 short questions</span><Button onClick={onContinue}>Continue to questions <span aria-hidden="true">→</span></Button></div>
     </PageShell>
   )
@@ -547,6 +540,8 @@ function Questionnaire({
           : 'Please select a perceived physical activity rating from 1 to 5.'
       case 5:
         return answers.medicalConditions ? '' : 'Please choose an answer, or “Prefer not to say”.'
+      case 6:
+        return answers.age.trim() ? '' : 'Please enter your age to continue.'
       case 7:
         if (!answers.videoLink.trim()) return 'Please provide a shareable video link to continue.'
         try {
@@ -703,10 +698,11 @@ function Questionnaire({
               label="Age in years"
               value={answers.age}
               onChange={(value) => update('age', value)}
-              optional
+              required
               type="number"
               rows={0}
               placeholder="Your age"
+              error={error}
             />
           </>}
           {step === 7 && <>
