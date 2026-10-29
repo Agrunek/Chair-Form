@@ -589,7 +589,7 @@ function Questionnaire({
                   </tr>
                 </thead>
                 <tbody>
-                  {[...sensationBodyAreas, ...(answers.sensationsOther.trim() ? [answers.sensationsOther.trim()] : [])].map((area) => (
+                  {sensationBodyAreas.map((area) => (
                     <tr key={area}>
                       <th scope="row">{area}</th>
                       {sensationRatingOptions.map((option) => (

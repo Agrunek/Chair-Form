@@ -18,10 +18,7 @@ export type QuestionnaireAnswers = {
   adjustmentOther: string
   controls: ChairControl[]
   sensationRatings: Record<string, string>
-  sensationsOther: string
   sensationsDetails: string
-  fitIssues: string[]
-  fitOther: string
   sharedWorkspace: string
   sharedSetup: string
   sharedSkip: string
@@ -44,10 +41,7 @@ export const initialAnswers: QuestionnaireAnswers = {
     { label: 'Unsure / don’t know', known: false, used: false },
   ],
   sensationRatings: Object.fromEntries(sensationBodyAreas.map((area) => [area, ''])),
-  sensationsOther: '',
   sensationsDetails: '',
-  fitIssues: [],
-  fitOther: '',
   sharedWorkspace: '',
   sharedSetup: '',
   sharedSkip: '',
