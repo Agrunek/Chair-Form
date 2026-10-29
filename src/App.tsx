@@ -1,9 +1,55 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { initialAnswers, sensationBodyAreas, type QuestionnaireAnswers } from './types'
 
 type Stage = 'welcome' | 'guidelines' | 'recording' | 'complete' | 'questionnaire' | 'thank-you'
 
 const QUESTION_COUNT = 8
+const SHEET_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz6MlCTmV92a0vwgEcqCRxosciTkL0RSKRWCgXN9exUh9-lXKUdnk7Q1qcu1qt5uxZIag/exec'
+
+type SheetResponse = { ok: true; row: number }
+
+async function sendToSheet(data: Record<string, unknown>): Promise<SheetResponse> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 15_000)
+
+  try {
+    const response = await fetch(SHEET_WEB_APP_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(data),
+      redirect: 'follow',
+      signal: controller.signal,
+    })
+
+    let result: unknown
+    try {
+      result = await response.json()
+    } catch {
+      if (!response.ok) throw new Error(`Request failed with status ${response.status}.`)
+      throw new Error('Invalid JSON response from Google Sheets.')
+    }
+
+    const resultObject = typeof result === 'object' && result !== null
+      ? result as Record<string, unknown>
+      : null
+    const serverError = typeof resultObject?.error === 'string' && resultObject.error.trim()
+      ? resultObject.error
+      : undefined
+
+    if (!response.ok) throw new Error(serverError ?? `Request failed with status ${response.status}.`)
+    if (resultObject?.ok === false) throw new Error(serverError ?? 'Google Sheets could not save the response.')
+    if (resultObject?.ok !== true || typeof resultObject.row !== 'number') {
+      throw new Error('Invalid response from Google Sheets.')
+    }
+
+    return resultObject as SheetResponse
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('Request timed out after 15 seconds.')
+    throw error
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}
 
 const questionTitles = [
   'Workspace adjustments',
@@ -395,14 +441,20 @@ function Questionnaire({
   setAnswers,
   onFinish,
   onBackToRecording,
+  isSubmitting,
+  statusMessage,
 }: {
   answers: QuestionnaireAnswers
   setAnswers: React.Dispatch<React.SetStateAction<QuestionnaireAnswers>>
-  onFinish: () => void
+  onFinish: (data: Record<string, unknown>) => Promise<void>
   onBackToRecording: () => void
+  isSubmitting: boolean
+  statusMessage: string
 }) {
   const [step, setStep] = useState(0)
   const [attemptedContinue, setAttemptedContinue] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+  const allowSubmit = useRef(false)
 
   function update<K extends keyof QuestionnaireAnswers>(key: K, value: QuestionnaireAnswers[K]) {
     setAnswers((current) => ({ ...current, [key]: value }))
@@ -476,11 +528,20 @@ function Questionnaire({
     else onBackToRecording()
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!allowSubmit.current) return
+    allowSubmit.current = false
+    const formData = new FormData(event.currentTarget)
+    void onFinish({ ...Object.fromEntries(formData.entries()), ...answers })
+  }
+
   const error = attemptedContinue ? validationForQuestion(step) : ''
   const percent = step === QUESTION_COUNT ? 100 : Math.round((step / QUESTION_COUNT) * 100)
 
   return (
     <PageShell narrow className="questionnaire-page">
+      <form id="myForm" ref={formRef} onSubmit={handleSubmit}>
       <div className="questionnaire-heading">
         <div><span className="eyebrow">The questionnaire</span><h1>A little more about your workspace.</h1></div>
         <span className="progress-count">{step === QUESTION_COUNT ? 'Review' : `Question ${step + 1} of ${QUESTION_COUNT}`}</span>
@@ -598,9 +659,14 @@ function Questionnaire({
         {step < QUESTION_COUNT ? (
           <Button onClick={continueQuestion}>{step === QUESTION_COUNT - 1 ? 'Review answers' : 'Continue'} <span aria-hidden="true">→</span></Button>
         ) : (
-          <Button onClick={onFinish}>Submit questionnaire <span aria-hidden="true">→</span></Button>
+          <Button onClick={() => {
+            allowSubmit.current = true
+            formRef.current?.requestSubmit()
+          }} disabled={isSubmitting}>Submit questionnaire <span aria-hidden="true">→</span></Button>
         )}
       </div>
+      <p id="status" role={statusMessage ? 'alert' : 'status'} aria-live="polite">{statusMessage}</p>
+      </form>
     </PageShell>
   )
 }
@@ -662,12 +728,13 @@ function ReviewAnswers({
   )
 }
 
-function ThankYou() {
+function ThankYou({ statusMessage }: { statusMessage: string }) {
   return (
     <PageShell narrow className="thank-you-page">
       <div className="completion-mark" aria-hidden="true"><span>✳</span></div>
       <PageIntro eyebrow="Study complete" title="Thank you for sharing your time." description="Your thoughtful answers help researchers understand how everyday workspaces are really used." />
-      <div className="thank-you-note"><p><strong>A note about your responses</strong></p><p>This page has not sent or saved your answers. If the researcher has provided a separate way to share your questionnaire or video, please follow their instructions.</p></div>
+      <p id="status" role="status" aria-live="polite">{statusMessage}</p>
+      <div className="thank-you-note"><p><strong>A note about your responses</strong></p><p>Your questionnaire has been saved for the study.</p></div>
       <p className="closing-line">Wishing you a comfortable rest of your day.</p>
     </PageShell>
   )
@@ -676,9 +743,30 @@ function ThankYou() {
 function App() {
   const [stage, setStage] = useState<Stage>('welcome')
   const [answers, setAnswers] = useState<QuestionnaireAnswers>(initialAnswers)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [statusMessage, setStatusMessage] = useState('')
+  const submissionInProgress = useRef(false)
 
   function finishSession() {
     setStage('complete')
+  }
+
+  async function submitQuestionnaire(data: Record<string, unknown>) {
+    if (submissionInProgress.current) return
+    submissionInProgress.current = true
+    setIsSubmitting(true)
+    setStatusMessage('')
+
+    try {
+      await sendToSheet(data)
+      setStatusMessage("")
+      setStage('thank-you')
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : 'Unable to save your responses.')
+    } finally {
+      submissionInProgress.current = false
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -688,8 +776,8 @@ function App() {
       {stage === 'guidelines' && <RecordingGuidelines onStart={() => setStage('recording')} />}
       {stage === 'recording' && <RecordingTimer onFinish={finishSession} />}
       {stage === 'complete' && <RecordingComplete onContinue={() => setStage('questionnaire')} />}
-      {stage === 'questionnaire' && <Questionnaire answers={answers} setAnswers={setAnswers} onFinish={() => setStage('thank-you')} onBackToRecording={() => setStage('complete')} />}
-      {stage === 'thank-you' && <ThankYou />}
+      {stage === 'questionnaire' && <Questionnaire answers={answers} setAnswers={setAnswers} onFinish={submitQuestionnaire} onBackToRecording={() => setStage('complete')} isSubmitting={isSubmitting} statusMessage={statusMessage} />}
+      {stage === 'thank-you' && <ThankYou statusMessage={statusMessage} />}
       <footer className="site-footer"><span>Made for real workdays</span>      <span>Take your time. Sensitive and follow-up questions are optional.</span></footer>
     </div>
   )
