@@ -622,7 +622,7 @@ function Questionnaire({
           </>}
           {step === 2 && <>
             <h2 id="question-title">How do your body parts feel after working here for a while?</h2>
-            <p className="question-hint">Choose one description for each area you’d like to rate. You can leave any area blank.</p>
+            <p className="question-hint">Choose one description which fits you the most.</p>
             <div className="sensation-table-scroll" role="region" aria-label="Body area ratings table. Scroll horizontally to see every rating." tabIndex={0} aria-describedby={error ? 'sensation-error' : undefined}>
               <table className="sensation-table">
                 <thead>
